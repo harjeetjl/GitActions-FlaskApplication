@@ -1,0 +1,64 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+      - staging
+  release:
+    types: [created]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      MONGO_URI: ${{ secrets.MONGO_URI }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0 
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run Tests
+        run: |
+          pip install pytest
+          pytest
+
+      - name: Decode SSH Key
+        run: |
+          echo "${{ secrets.EC2_KEY }}" | base64 --decode > key.pem
+          chmod 600 key.pem
+
+      - name: Deploy to EC2
+        if: github.ref == 'refs/heads/staging' || github.event_name == 'release'
+        run: |
+          HOST=""
+          BRANCH=""
+          if [ "${{ github.ref }}" == "refs/heads/staging" ]; then
+            HOST=${{ secrets.EC2_HOST_STAGING }}
+            BRANCH="staging"
+          elif [ "${{ github.event_name }}" == "release" ]; then
+            HOST=${{ secrets.EC2_HOST_PRODUCTION }}
+            BRANCH="main"
+          fi
+
+          ssh -o StrictHostKeyChecking=no -i key.pem ${{ secrets.EC2_USER }}@$HOST <<EOF
+            cd GithubActions_FlaskApp
+            git fetch --all
+            git checkout $BRANCH
+            git pull origin $BRANCH
+            echo "MONGO_URI=${{ secrets.MONGO_URI }}" > .env
+            source venv/bin/activate
+            pip install -r requirements.txt
+            sudo systemctl restart flaskapp
+          EOF
