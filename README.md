@@ -77,9 +77,9 @@ After=network.target
 
 [Service]
 User=ec2-user
-WorkingDirectory=/home/ec2-user/GithubActions_FlaskApp
-EnvironmentFile=/home/ec2-user/GithubActions_FlaskApp/.env
-ExecStart=/home/ec2-user/GithubActions_FlaskApp/venv/bin/python app.py
+WorkingDirectory=/home/ec2-user/GitActions-FlaskApplication
+EnvironmentFile=/home/ec2-user/GitActions-FlaskApplication/.env
+ExecStart=/home/ec2-user/GitActions-FlaskApplication/venv/bin/python app.py
 Restart=always
 
 [Install]
